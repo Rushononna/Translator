@@ -157,12 +157,12 @@ export function SimpleTextFormatView() {
           >
             
             {/* Seal - Visible on every page */}
-            <div className="border-[3px] border-[#dc2626] rounded-full w-36 h-36 flex items-center justify-center rotate-[-15deg] opacity-80 absolute top-6 right-6 pointer-events-none print:opacity-80 z-10 mix-blend-multiply bg-transparent">
+            <div className="border-[3px] border-[#dc2626] rounded-full w-36 h-36 flex items-center justify-center rotate-[-15deg] opacity-80 absolute top-10 right-10 pointer-events-none print:opacity-80 mix-blend-multiply bg-transparent">
               <div className="text-center text-[#dc2626] font-bold leading-none flex flex-col items-center justify-center h-full w-full p-2">
                 <div className="text-[10px] tracking-tighter mb-1 scale-x-90">CHINA MERCHANTS</div>
                 <div className="text-[10px] tracking-tighter mb-2 scale-x-90">BANK CO., LTD.</div>
-                <div className="text-lg mb-1 font-serif tracking-widest scale-x-110">业务专用章</div>
-                <div className="text-[9px] mb-1 scale-x-90">(Sello Especial)</div>
+                <div className="text-lg mb-1 font-serif tracking-widest scale-x-110">电子回单专用章</div>
+                <div className="text-[9px] mb-1 scale-x-90">(Electronic Receipt Special Seal)</div>
                 <div className="text-[9px] scale-x-90">673RM2C2</div>
               </div>
             </div>
@@ -170,75 +170,74 @@ export function SimpleTextFormatView() {
             {/* Header Section - Only on First Page */}
             {page.isFirst && (
               <>
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-xs">CMB</div>
+                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-[10px] leading-none pt-0.5">CMB</div>
                         <div>
                            <h1 className="text-xl font-bold text-[#1f2937] tracking-wide">CHINA MERCHANTS BANK</h1>
-                           <div className="text-[8px] text-[#6b7280] tracking-wider">BANCO DE COMERCIANTES DE CHINA</div>
+                           <div className="text-[8px] text-[#6b7280] tracking-wider">招商银行</div>
                         </div>
                      </div>
                   </div>
                   <div className="text-right">
-                     {/* Seal moved to page container */}
                      <div className="border border-[#d1d5db] px-2 py-1 inline-block text-[10px] mt-2">
-                        Documento Electrónico
+                        电子回单
                      </div>
                   </div>
                 </div>
 
-                <h2 className="text-center text-lg font-bold mb-8 border-b pb-4 border-[#e5e7eb]">
-                  DETALLE HISTÓRICO DE TRANSACCIONES DE CUENTA
+                <h2 className="text-center text-lg font-bold mb-6 border-b pb-2 border-[#e5e7eb]">
+                  账户交易明细
                 </h2>
 
                 {/* Account Details Grid */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mb-6 text-[10px]">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-4 text-[9px]">
                    <div className="flex">
-                      <span className="w-24 text-[#4b5563]">Fecha:</span>
+                      <span className="w-24 text-[#4b5563]">打印日期:</span>
                       <span className="font-medium">2024/03/21 15:12:51</span>
                    </div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Sucursal de Aceptación:</span>
-                      <span className="font-medium">Zona Franca de Shanghái Lingang</span>
+                      <span className="w-24 text-[#4b5563]">受理网点:</span>
+                      <span className="font-medium">上海自贸试验区临港新片区支行</span>
                    </div>
 
                    <div className="flex">
-                      <span className="w-24 text-[#4b5563]">Nombre:</span>
+                      <span className="w-24 text-[#4b5563]">户名:</span>
                       <span className="font-medium">MUJAHIDUL HOSSAIN</span>
                    </div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Tipo de Comprobante:</span>
-                      <span className="font-medium">Tarjeta IC UnionPay Golden Sunflower</span>
+                      <span className="w-24 text-[#4b5563]">凭证种类:</span>
+                      <span className="font-medium">金葵花IC卡</span>
                    </div>
 
                    <div className="flex">
-                      <span className="w-24 text-[#4b5563]">Tipo de Consulta:</span>
-                      <span className="font-medium">Historial de Cuenta</span>
+                      <span className="w-24 text-[#4b5563]">查询类型:</span>
+                      <span className="font-medium">历史交易查询</span>
                    </div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Tipo de Cuenta:</span>
-                      <span className="font-medium">Multidivisa</span>
+                      <span className="w-24 text-[#4b5563]">账户性质:</span>
+                      <span className="font-medium">多币种</span>
                    </div>
 
                    <div className="flex">
-                      <span className="w-24 text-[#4b5563]">Cód. Verificación:</span>
+                      <span className="w-24 text-[#4b5563]">验证码:</span>
                       <span className="font-medium">673RM2C2</span>
                    </div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Sucursal de Apertura:</span>
-                      <span className="font-medium">Sucursal Shanghai Jinqiao</span>
+                      <span className="w-24 text-[#4b5563]">开户网点:</span>
+                      <span className="font-medium">上海金桥支行</span>
                    </div>
 
                    <div className="col-span-1 flex"></div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Número de Cuenta:</span>
+                      <span className="w-24 text-[#4b5563]">账号:</span>
                       <span className="font-medium">6214860214983062</span>
                    </div>
 
                    <div className="col-span-1"></div>
                    <div className="flex">
-                      <span className="w-32 text-[#4b5563]">Periodo de Transacción:</span>
+                      <span className="w-24 text-[#4b5563]">起止日期:</span>
                       <span className="font-medium">2023/09/19 - 2024/03/21</span>
                    </div>
                 </div>
@@ -246,39 +245,39 @@ export function SimpleTextFormatView() {
             )}
 
             {/* Transactions Table */}
-            <table className="w-full text-left border-collapse mb-8">
+            <table className="w-full text-left border-collapse mb-4 table-fixed">
               <thead>
-                <tr className="border-b border-t border-black text-[9px]">
-                  <th className="py-1 font-medium w-20">Fecha</th>
-                  <th className="py-1 font-medium w-10">Moneda</th>
-                  <th className="py-1 font-medium text-right w-20">Ingresos</th>
-                  <th className="py-1 font-medium text-right w-20">Egresos</th>
-                  <th className="py-1 font-medium text-right w-24">Saldo</th>
-                  <th className="py-1 font-medium pl-4 w-24">Resumen</th>
-                  <th className="py-1 font-medium w-40">Info. Contraparte</th>
-                  <th className="py-1 font-medium">Resumen del Cliente</th>
+                <tr className="border-b border-t border-black text-[8px]">
+                  <th className="py-1 font-medium w-[12%]">记账日期</th>
+                  <th className="py-1 font-medium w-[6%]">币种</th>
+                  <th className="py-1 font-medium text-right w-[10%]">收入金额</th>
+                  <th className="py-1 font-medium text-right w-[10%]">支出金额</th>
+                  <th className="py-1 font-medium text-right w-[12%]">联机余额</th>
+                  <th className="py-1 font-medium pl-2 w-[12%]">交易摘要</th>
+                  <th className="py-1 font-medium w-[20%]">交易对手信息</th>
+                  <th className="py-1 font-medium w-[18%]">客户摘要信息</th>
                 </tr>
               </thead>
-              <tbody className="text-[9px]">
+              <tbody className="text-[8px]">
                 {page.transactions.map((tx, i) => (
                   <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#f9fafb] print:hover:bg-transparent">
-                    <td className="py-1 align-top">{tx.date}</td>
-                    <td className="py-1 align-top">{tx.currency}</td>
-                    <td className="py-1 align-top text-right">{tx.income !== '0.00' ? tx.income : '0.00'}</td>
-                    <td className="py-1 align-top text-right">{tx.expense !== '0.00' ? tx.expense : '0.00'}</td>
-                    <td className="py-1 align-top text-right">{tx.balance}</td>
-                    <td className="py-1 align-top pl-4">{tx.summary}</td>
-                    <td className="py-1 align-top pr-2 text-[#4b5563] break-words whitespace-normal leading-tight">{tx.counterparty}</td>
-                    <td className="py-1 align-top text-[#4b5563] break-words whitespace-normal leading-tight">{tx.customerAbstract}</td>
+                    <td className="py-0.5 align-top">{tx.date}</td>
+                    <td className="py-0.5 align-top">{tx.currency}</td>
+                    <td className="py-0.5 align-top text-right">{tx.income !== '0.00' ? tx.income : '0.00'}</td>
+                    <td className="py-0.5 align-top text-right">{tx.expense !== '0.00' ? tx.expense : '0.00'}</td>
+                    <td className="py-0.5 align-top text-right">{tx.balance}</td>
+                    <td className="py-0.5 align-top pl-2">{tx.summary}</td>
+                    <td className="py-0.5 align-top pr-1 text-[#4b5563] break-words whitespace-normal leading-tight">{tx.counterparty}</td>
+                    <td className="py-0.5 align-top text-[#4b5563] break-words whitespace-normal leading-tight">{tx.customerAbstract}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
             {/* Footer */}
-            <div className="mt-auto pt-8 flex justify-between text-[9px] text-[#6b7280]">
-               <div>Usuario: 037706</div>
-               <div>Página: {page.pageNum} de {totalPages}</div>
+            <div className="mt-auto pt-4 flex justify-between text-[8px] text-[#6b7280]">
+               <div>经办用户: 037706</div>
+               <div>页码: 第{page.pageNum} 页 总共{totalPages} 页</div>
                <div></div>
             </div>
 

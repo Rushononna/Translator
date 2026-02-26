@@ -157,11 +157,11 @@ export function StatementView() {
           >
             
             {/* Seal - Visible on every page */}
-            <div className="border-[3px] border-[#dc2626] rounded-full w-36 h-36 flex items-center justify-center rotate-[-15deg] opacity-80 absolute top-6 right-6 pointer-events-none print:opacity-80 z-10 mix-blend-multiply bg-transparent">
+            <div className="border-[3px] border-[#dc2626] rounded-full w-36 h-36 flex items-center justify-center rotate-[-15deg] opacity-80 absolute top-10 right-10 pointer-events-none print:opacity-80 mix-blend-multiply bg-transparent">
               <div className="text-center text-[#dc2626] font-bold leading-none flex flex-col items-center justify-center h-full w-full p-2">
                 <div className="text-[10px] tracking-tighter mb-1 scale-x-90">CHINA MERCHANTS</div>
                 <div className="text-[10px] tracking-tighter mb-2 scale-x-90">BANK CO., LTD.</div>
-                <div className="text-lg mb-1 font-serif tracking-widest scale-x-110">业务专用章</div>
+                <div className="text-lg mb-1 font-serif tracking-widest scale-x-110">电子回单专用章</div>
                 <div className="text-[9px] mb-1 scale-x-90">(Sello Especial)</div>
                 <div className="text-[9px] scale-x-90">673RM2C2</div>
               </div>
@@ -173,7 +173,7 @@ export function StatementView() {
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex-1">
                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-xs">CMB</div>
+                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-[10px] leading-none pt-0.5">CMB</div>
                         <div>
                            <h1 className="text-xl font-bold text-[#1f2937] tracking-wide">CHINA MERCHANTS BANK</h1>
                            <div className="text-[8px] text-[#6b7280] tracking-wider">BANCO DE COMERCIANTES DE CHINA</div>

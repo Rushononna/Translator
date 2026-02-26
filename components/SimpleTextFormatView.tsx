@@ -3,9 +3,9 @@ import { Printer, Upload, Loader2, FileCheck } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-import { transactions, Transaction } from '../data/transactions';
+import { transactions } from '../data/transactions';
 
-export function StatementView() {
+export function SimpleTextFormatView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -78,7 +78,7 @@ export function StatementView() {
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfImgHeight);
       }
       
-      pdf.save('bank-statement-translated.pdf');
+      pdf.save('bank-statement-simple.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');

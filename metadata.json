@@ -1,0 +1,5 @@
+{
+  "name": "PDF Translator",
+  "description": "A tool to translate and generate PDF statements.",
+  "requestFramePermissions": []
+}

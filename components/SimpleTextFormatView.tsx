@@ -1,87 +1,83 @@
 import React, { useRef, useState } from 'react';
-import { Printer, Upload, Loader2, FileCheck } from 'lucide-react';
+import { Printer, Upload, Loader2, FileCheck, Eye } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { GoogleGenAI } from "@google/genai";
 
-import { transactions } from '../data/transactions';
+// Initialize Gemini API
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export function SimpleTextFormatView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const certificateRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
 
-  // Pagination Configuration
-  // Based on original document: Page 1 has ~41 rows, Page 2+ has ~52 rows
-  const ITEMS_PER_PAGE_FIRST = 41;
-  const ITEMS_PER_PAGE_OTHER = 52;
-
-  // Calculate pages
-  const pages = [];
-  
-  // First Page
-  pages.push({
-    pageNum: 1,
-    transactions: transactions.slice(0, ITEMS_PER_PAGE_FIRST),
-    isFirst: true
+  // Certificate Data State
+  const [certificateData, setCertificateData] = useState({
+    name: 'HOSSAINMUJAHIDUL',
+    gender: 'Masculino',
+    idNumber: 'A13635969',
+    startDate: '15-05-2024',
+    position: 'Análisis de Datos - Gerente de Producto Senior',
+    department: 'Departamento de Proyecto HOPEGOO',
+    companyName: 'Shanghai Chengmi Information Technology Co., Ltd.',
+    issueDate: '15 de agosto de 2024',
+    sealText: '上海程咪信息技术有限公司',
+    salary: ''
   });
 
-  // Subsequent Pages
-  let remainingTx = transactions.slice(ITEMS_PER_PAGE_FIRST);
-  let currentPage = 2;
-  while (remainingTx.length > 0) {
-    pages.push({
-        pageNum: currentPage,
-        transactions: remainingTx.slice(0, ITEMS_PER_PAGE_OTHER),
-        isFirst: false
-    });
-    remainingTx = remainingTx.slice(ITEMS_PER_PAGE_OTHER);
-    currentPage++;
-  }
-  
-  // Hardcoded total pages to match original document as requested
-  const totalPages = 16; 
-
   const handlePrint = async () => {
-    const pageElements = document.querySelectorAll('[data-pdf-page]');
-    if (!pageElements.length) return;
+    if (!certificateRef.current) return;
+
+    console.log('Generating PDF with data:', certificateData);
 
     try {
       setIsGeneratingPdf(true);
       
+      // Scroll to top to ensure html2canvas captures correctly
+      window.scrollTo(0, 0);
+      
+      // Delay to ensure any pending renders are complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
       
-      for (let i = 0; i < pageElements.length; i++) {
-        const pageEl = pageElements[i] as HTMLElement;
-        
-        const canvas = await html2canvas(pageEl, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          onclone: (clonedDoc) => {
-              const element = clonedDoc.body.querySelector(`[data-page-id="${i}"]`) as HTMLElement;
-              if (element) {
-                  element.style.color = '#111827';
-                  element.style.backgroundColor = '#ffffff';
-              }
-          }
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-        if (i > 0) {
-            pdf.addPage();
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: true, // Enable logging for debugging
+        backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+            const element = clonedDoc.getElementById('certificate-page');
+            if (element) {
+                // Remove shadow and centering for the PDF capture
+                element.classList.remove('shadow-xl', 'mx-auto');
+                // Force A4 width and ensure visibility
+                element.style.width = '210mm';
+                element.style.maxWidth = '210mm';
+                element.style.height = 'auto';
+                element.style.minHeight = '297mm';
+                element.style.margin = '0';
+                element.style.padding = '25mm'; // Ensure padding is preserved
+                element.style.transform = 'none';
+                element.style.overflow = 'visible';
+            }
         }
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfImgHeight);
-      }
-      
-      pdf.save('bank-statement-simple.pdf');
-    } catch (error) {
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfImgHeight);
+      pdf.save('certificado-empleo.pdf');
+    } catch (error: any) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      alert(`Failed to generate PDF: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -91,11 +87,110 @@ export function SimpleTextFormatView() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const fileToGenerativePart = (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64Data = base64String.split(',')[1];
+        resolve({
+          inlineData: {
+            data: base64Data,
+            mimeType: file.type,
+          },
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const extractData = async (file: File) => {
+    try {
+      setIsExtracting(true);
+      const imagePart = await fileToGenerativePart(file);
+
+      const prompt = `
+        Analyze this employment certificate/testimonial image. Extract the following information and translate the values to Spanish.
+        
+        Required JSON Structure:
+        {
+          "name": "Employee Name",
+          "gender": "Masculino/Femenino (If not stated, try to infer from context, otherwise use 'N/A')",
+          "idNumber": "Passport or ID Number",
+          "startDate": "Start Date (DD-MM-YYYY)",
+          "position": "Job Title (Translated to Spanish)",
+          "department": "Department Name (Translated to Spanish)",
+          "companyName": "Company Name (Keep original)",
+          "issueDate": "Date of Issue (e.g., 15 de agosto de 2024)",
+          "sealText": "Text on the circular seal (Keep original language)",
+          "salary": "Monthly Salary (e.g., 34910 RMB) - Optional"
+        }
+
+        If a field is not found, use "N/A". Ensure the output is valid JSON.
+      `;
+
+      // Reset to loading state/placeholders to show something is happening
+      setCertificateData(prev => ({
+        ...prev,
+        name: 'Extrayendo...',
+        gender: '...',
+        idNumber: '...',
+        startDate: '...',
+        position: '...',
+        department: '...',
+        companyName: '...',
+        issueDate: '...',
+        sealText: '...',
+        salary: '...'
+      }));
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: {
+            parts: [
+                imagePart,
+                { text: prompt }
+            ]
+        },
+        config: {
+            responseMimeType: 'application/json'
+        }
+      });
+
+      const text = response.text;
+      console.log('Gemini Response:', text);
+
+      try {
+        const data = JSON.parse(text);
+        setCertificateData(prev => ({
+          ...prev,
+          ...data
+        }));
+      } catch (e) {
+        console.error('JSON Parse Error:', e);
+        alert('Failed to parse extracted data. Please check the console.');
+        // Revert to default or leave as is? Better to leave as is or show error state.
+      }
+    } catch (error) {
+      console.error('Error extracting data:', error);
+      alert('Failed to extract data from the image. Please try again.');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
       console.log('File selected:', file.name);
+      
+      // Trigger extraction
+      await extractData(file);
     }
   };
 
@@ -116,7 +211,10 @@ export function SimpleTextFormatView() {
             <FileCheck size={16} />
             <span className="font-medium truncate max-w-[200px]">{selectedFile.name}</span>
             <button 
-              onClick={() => setSelectedFile(null)}
+              onClick={() => {
+                setSelectedFile(null);
+                setPreviewUrl(null);
+              }}
               className="ml-1 text-[#15803d] hover:text-[#14532d]"
             >
               ×
@@ -124,17 +222,28 @@ export function SimpleTextFormatView() {
           </div>
         )}
 
+        {previewUrl && (
+          <button 
+            onClick={() => window.open(previewUrl, '_blank')}
+            className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
+          >
+            <Eye size={18} />
+            View Original
+          </button>
+        )}
+
         <button 
           onClick={handleUploadClick}
-          className="flex items-center gap-2 bg-white text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
+          disabled={isExtracting}
+          className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium disabled:opacity-70"
         >
-          <Upload size={18} />
-          {selectedFile ? 'Change File' : 'Upload Statement'}
+          {isExtracting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+          {selectedFile ? 'Change File' : 'Upload Document'}
         </button>
         <button 
           onClick={handlePrint}
-          disabled={isGeneratingPdf}
-          className="flex items-center gap-2 bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+          disabled={isGeneratingPdf || isExtracting}
+          className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isGeneratingPdf ? (
             <Loader2 size={18} className="animate-spin" />
@@ -145,144 +254,101 @@ export function SimpleTextFormatView() {
         </button>
       </div>
 
-      {/* Pages Container */}
-      <div className="flex flex-col gap-8 print:gap-0">
-        {pages.map((page, index) => (
-          <div 
-            key={index}
-            data-pdf-page="true"
-            data-page-id={index}
-            className="max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none min-h-[297mm] w-[210mm] p-[15mm] relative text-[10px] leading-tight font-sans text-[#111827] flex flex-col"
-            style={{ backgroundColor: '#ffffff', color: '#111827' }}
-          >
-            
-            {/* Seal - Visible on every page */}
-            <div className="border-[3px] border-[#dc2626] rounded-full w-36 h-36 flex items-center justify-center rotate-[-15deg] opacity-80 absolute top-10 right-10 pointer-events-none print:opacity-80 mix-blend-multiply bg-transparent">
-              <div className="text-center text-[#dc2626] font-bold leading-none flex flex-col items-center justify-center h-full w-full p-2">
-                <div className="text-[10px] tracking-tighter mb-1 scale-x-90">CHINA MERCHANTS</div>
-                <div className="text-[10px] tracking-tighter mb-2 scale-x-90">BANK CO., LTD.</div>
-                <div className="text-lg mb-1 font-serif tracking-widest scale-x-110">电子回单专用章</div>
-                <div className="text-[9px] mb-1 scale-x-90">(Electronic Receipt Special Seal)</div>
-                <div className="text-[9px] scale-x-90">673RM2C2</div>
-              </div>
+      {/* Certificate Page */}
+      <div 
+        id="certificate-page"
+        ref={certificateRef}
+        className="max-w-[210mm] mx-auto bg-[#ffffff] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] print:shadow-none min-h-[297mm] w-[210mm] p-[25mm] relative font-serif text-[#111827] flex flex-col"
+        style={{ backgroundColor: '#ffffff', color: '#111827' }}
+      >
+        
+        {/* Header Logo */}
+        <div className="mb-16">
+            <div className="flex items-center gap-4 mb-4">
+                {/* Logo Icon */}
+                <div className="bg-[#000000] text-[#ffffff] rounded-full p-1.5 flex-shrink-0">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M21 8C21 8 19 12 15 12C11 12 9 10 9 10C9 10 10 14 14 16C18 18 21 16 21 16" stroke="none" />
+                        <path d="M3 10C3 10 6 8 10 8C14 8 16 10 16 10" stroke="none" />
+                        <path d="M12 6C12 6 14 4 17 4" stroke="none" />
+                        <circle cx="5" cy="10" r="2" />
+                    </svg>
+                </div>
+                <span className="text-3xl font-bold tracking-wide font-sans mt-1">同程旅行</span>
+            </div>
+            <div className="w-full h-[2px] bg-[#000000]"></div>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-center text-6xl font-bold mb-24 tracking-[0.15em] uppercase">
+            Certificado de<br/>Empleo
+        </h1>
+
+        {/* Body Content */}
+        <div className="text-2xl leading-loose space-y-12 font-serif text-justify">
+            <p className="indent-16">
+                Por la presente se certifica que <span className="font-bold px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.name}</span>, 
+                {certificateData.gender !== 'N/A' && (
+                  <> sexo <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.gender}</span>,</>
+                )} 
+                número de documento <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.idNumber}</span>, 
+                ha estado trabajando en nuestra empresa desde el <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.startDate}</span> hasta la fecha, 
+                actualmente ocupa el puesto de <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.position}</span> en el departamento <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.department}</span>.
+                {certificateData.salary && (
+                  <> Su salario mensual es de <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.salary}</span>.</>
+                )}
+            </p>
+
+            <p className="mt-20 indent-16">
+                Se expide la presente constancia para los fines pertinentes.
+            </p>
+        </div>
+
+        {/* Signature Section */}
+        <div className="mt-auto mb-20 flex flex-col items-end relative pr-10">
+            {/* Seal */}
+            <div className="absolute top-[-80px] right-[20px] w-56 h-56 border-[6px] border-[#dc2626] rounded-full flex items-center justify-center opacity-90 rotate-[-15deg] pointer-events-none">
+                <div className="relative w-full h-full flex items-center justify-center">
+                    {/* Star */}
+                    <div className="text-[#dc2626] text-8xl mb-4">★</div>
+                    {/* Circular Text */}
+                    <svg className="absolute w-full h-full" viewBox="0 0 100 100">
+                        <path id="curve" d="M 14, 50 A 36, 36 0 1, 1 86, 50" fill="transparent" />
+                        <text className="fill-[#dc2626] font-bold text-[7px] tracking-widest">
+                            <textPath href="#curve" startOffset="50%" textAnchor="middle">
+                                {certificateData.sealText}
+                            </textPath>
+                        </text>
+                    </svg>
+                </div>
             </div>
 
-            {/* Header Section - Only on First Page */}
-            {page.isFirst && (
-              <>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-[10px] leading-none pt-0.5">CMB</div>
-                        <div>
-                           <h1 className="text-xl font-bold text-[#1f2937] tracking-wide">CHINA MERCHANTS BANK</h1>
-                           <div className="text-[8px] text-[#6b7280] tracking-wider">招商银行</div>
-                        </div>
-                     </div>
-                  </div>
-                  <div className="text-right">
-                     <div className="border border-[#d1d5db] px-2 py-1 inline-block text-[10px] mt-2">
-                        电子回单
-                     </div>
-                  </div>
+            <div className="text-right z-10 space-y-4 font-serif text-xl">
+                <div className="mb-6">
+                    <span className="font-bold">Nombre de la Empresa:</span> {certificateData.companyName}
                 </div>
-
-                <h2 className="text-center text-lg font-bold mb-6 border-b pb-2 border-[#e5e7eb]">
-                  账户交易明细
-                </h2>
-
-                {/* Account Details Grid */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-4 text-[9px]">
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">打印日期:</span>
-                      <span className="font-medium">2024/03/21 15:12:51</span>
-                   </div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">受理网点:</span>
-                      <span className="font-medium">上海自贸试验区临港新片区支行</span>
-                   </div>
-
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">户名:</span>
-                      <span className="font-medium">MUJAHIDUL HOSSAIN</span>
-                   </div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">凭证种类:</span>
-                      <span className="font-medium">金葵花IC卡</span>
-                   </div>
-
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">查询类型:</span>
-                      <span className="font-medium">历史交易查询</span>
-                   </div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">账户性质:</span>
-                      <span className="font-medium">多币种</span>
-                   </div>
-
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">验证码:</span>
-                      <span className="font-medium">673RM2C2</span>
-                   </div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">开户网点:</span>
-                      <span className="font-medium">上海金桥支行</span>
-                   </div>
-
-                   <div className="col-span-1 flex"></div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">账号:</span>
-                      <span className="font-medium">6214860214983062</span>
-                   </div>
-
-                   <div className="col-span-1"></div>
-                   <div className="flex">
-                      <span className="w-24 text-[#4b5563]">起止日期:</span>
-                      <span className="font-medium">2023/09/19 - 2024/03/21</span>
-                   </div>
+                <div>
+                    <span className="font-bold">Fecha:</span> {certificateData.issueDate}
                 </div>
-              </>
-            )}
-
-            {/* Transactions Table */}
-            <table className="w-full text-left border-collapse mb-4 table-fixed">
-              <thead>
-                <tr className="border-b border-t border-black text-[8px]">
-                  <th className="py-1 font-medium w-[12%]">记账日期</th>
-                  <th className="py-1 font-medium w-[6%]">币种</th>
-                  <th className="py-1 font-medium text-right w-[10%]">收入金额</th>
-                  <th className="py-1 font-medium text-right w-[10%]">支出金额</th>
-                  <th className="py-1 font-medium text-right w-[12%]">联机余额</th>
-                  <th className="py-1 font-medium pl-2 w-[12%]">交易摘要</th>
-                  <th className="py-1 font-medium w-[20%]">交易对手信息</th>
-                  <th className="py-1 font-medium w-[18%]">客户摘要信息</th>
-                </tr>
-              </thead>
-              <tbody className="text-[8px]">
-                {page.transactions.map((tx, i) => (
-                  <tr key={i} className="border-b border-[#f3f4f6] hover:bg-[#f9fafb] print:hover:bg-transparent">
-                    <td className="py-0.5 align-top">{tx.date}</td>
-                    <td className="py-0.5 align-top">{tx.currency}</td>
-                    <td className="py-0.5 align-top text-right">{tx.income !== '0.00' ? tx.income : '0.00'}</td>
-                    <td className="py-0.5 align-top text-right">{tx.expense !== '0.00' ? tx.expense : '0.00'}</td>
-                    <td className="py-0.5 align-top text-right">{tx.balance}</td>
-                    <td className="py-0.5 align-top pl-2">{tx.summary}</td>
-                    <td className="py-0.5 align-top pr-1 text-[#4b5563] break-words whitespace-normal leading-tight">{tx.counterparty}</td>
-                    <td className="py-0.5 align-top text-[#4b5563] break-words whitespace-normal leading-tight">{tx.customerAbstract}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Footer */}
-            <div className="mt-auto pt-4 flex justify-between text-[8px] text-[#6b7280]">
-               <div>经办用户: 037706</div>
-               <div>页码: 第{page.pageNum} 页 总共{totalPages} 页</div>
-               <div></div>
             </div>
+        </div>
 
-          </div>
-        ))}
+        {/* Footer */}
+        <div className="pt-12 border-t border-[#e5e7eb] text-sm space-y-3 text-[#4b5563] font-sans">
+            <div className="flex gap-4">
+                <span className="font-bold min-w-[260px]">Dirección Detallada de la Empresa:</span>
+                <span>Edificio Tongcheng Travel, No. 66 Honghui Road, Parque Industrial de Suzhou</span>
+            </div>
+            <div className="flex gap-4">
+                <span className="font-bold min-w-[260px]">Contacto de la Empresa:</span>
+                <span>Centro de RR.HH. y Operaciones Organizacionales</span>
+            </div>
+            <div className="flex gap-4">
+                <span className="font-bold min-w-[260px]">Teléfono de la Empresa:</span>
+                <span>0512-80162199</span>
+            </div>
+        </div>
+
       </div>
     </div>
   );

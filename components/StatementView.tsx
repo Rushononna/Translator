@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Printer, Upload, Loader2, FileCheck } from 'lucide-react';
+import { Printer, Upload, Loader2, FileCheck, Eye } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -8,6 +8,7 @@ import { transactions, Transaction } from '../data/transactions';
 export function StatementView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Pagination Configuration
@@ -95,12 +96,14 @@ export function StatementView() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
       console.log('File selected:', file.name);
     }
   };
 
   return (
-    <div className="p-8 bg-[#f3f4f6] min-h-screen print:bg-white print:p-0">
+    <div className="p-8 bg-[#f3f4f6] min-h-screen print:bg-[#ffffff] print:p-0">
       {/* Controls - Hidden when printing */}
       <div className="max-w-[210mm] mx-auto mb-6 flex justify-end items-center gap-3 print:hidden">
         <input 
@@ -116,7 +119,10 @@ export function StatementView() {
             <FileCheck size={16} />
             <span className="font-medium truncate max-w-[200px]">{selectedFile.name}</span>
             <button 
-              onClick={() => setSelectedFile(null)}
+              onClick={() => {
+                setSelectedFile(null);
+                setPreviewUrl(null);
+              }}
               className="ml-1 text-[#15803d] hover:text-[#14532d]"
             >
               ×
@@ -124,9 +130,19 @@ export function StatementView() {
           </div>
         )}
 
+        {previewUrl && (
+          <button 
+            onClick={() => window.open(previewUrl, '_blank')}
+            className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
+          >
+            <Eye size={18} />
+            View Original
+          </button>
+        )}
+
         <button 
           onClick={handleUploadClick}
-          className="flex items-center gap-2 bg-white text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
+          className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
         >
           <Upload size={18} />
           {selectedFile ? 'Change File' : 'Upload Statement'}
@@ -134,7 +150,7 @@ export function StatementView() {
         <button 
           onClick={handlePrint}
           disabled={isGeneratingPdf}
-          className="flex items-center gap-2 bg-[#2563eb] text-white px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isGeneratingPdf ? (
             <Loader2 size={18} className="animate-spin" />
@@ -152,7 +168,7 @@ export function StatementView() {
             key={index}
             data-pdf-page="true"
             data-page-id={index}
-            className="max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none min-h-[297mm] w-[210mm] p-[15mm] relative text-[10px] leading-tight font-sans text-[#111827] flex flex-col"
+            className="max-w-[210mm] mx-auto bg-[#ffffff] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] print:shadow-none min-h-[297mm] w-[210mm] p-[15mm] relative text-[10px] leading-tight font-sans text-[#111827] flex flex-col"
             style={{ backgroundColor: '#ffffff', color: '#111827' }}
           >
             
@@ -173,7 +189,7 @@ export function StatementView() {
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex-1">
                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-white font-bold text-[10px] leading-none pt-0.5">CMB</div>
+                        <div className="w-8 h-8 rounded-full bg-[#dc2626] flex items-center justify-center text-[#ffffff] font-bold text-[10px] leading-none pt-0.5">CMB</div>
                         <div>
                            <h1 className="text-xl font-bold text-[#1f2937] tracking-wide">CHINA MERCHANTS BANK</h1>
                            <div className="text-[8px] text-[#6b7280] tracking-wider">BANCO DE COMERCIANTES DE CHINA</div>
@@ -248,7 +264,7 @@ export function StatementView() {
             {/* Transactions Table */}
             <table className="w-full text-left border-collapse mb-8">
               <thead>
-                <tr className="border-b border-t border-black text-[9px]">
+                <tr className="border-b border-t border-[#000000] text-[9px]">
                   <th className="py-1 font-medium w-20">Fecha</th>
                   <th className="py-1 font-medium w-10">Moneda</th>
                   <th className="py-1 font-medium text-right w-20">Ingresos</th>

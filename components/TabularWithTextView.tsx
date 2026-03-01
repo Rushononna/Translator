@@ -72,14 +72,31 @@ export function TabularWithTextView() {
             const element = clonedDoc.getElementById('document-page');
             if (element) {
                 element.classList.remove('shadow-xl', 'mx-auto');
-                element.style.width = '210mm';
-                element.style.maxWidth = '210mm';
+                
+                // Fix text width to prevent reflow when we expand container
+                // A4 (210mm) - Padding (20mm * 2) = 170mm
+                const textElements = element.querySelectorAll('p, h1');
+                textElements.forEach((el) => {
+                    (el as HTMLElement).style.width = '170mm';
+                });
+
+                // Allow container to expand to fit wide tables
+                element.style.width = 'fit-content';
+                element.style.minWidth = '210mm';
+                element.style.maxWidth = 'none'; // Override any max-width
                 element.style.height = 'auto';
                 element.style.minHeight = '297mm';
                 element.style.margin = '0';
                 element.style.padding = '20mm';
                 element.style.transform = 'none';
                 element.style.overflow = 'visible';
+
+                // Make tables fully visible
+                const tableWrappers = element.querySelectorAll('.table-wrapper');
+                tableWrappers.forEach((el) => {
+                    (el as HTMLElement).style.overflow = 'visible';
+                    (el as HTMLElement).style.width = 'auto';
+                });
             }
         }
       });
@@ -397,7 +414,7 @@ export function TabularWithTextView() {
                     );
                 } else if (section.type === 'table') {
                     return (
-                        <div key={index} className="overflow-hidden border border-gray-300 rounded-sm mb-4">
+                        <div key={index} className="overflow-x-auto border border-gray-300 rounded-sm mb-4 table-wrapper">
                             <table className="min-w-full divide-y divide-gray-300">
                                 <thead className="bg-gray-50">
                                     <tr>

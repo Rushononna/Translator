@@ -7,7 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 // Initialize Gemini API
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-export function SimpleTextFormatView() {
+export function TestimonialView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const certificateRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -15,24 +15,29 @@ export function SimpleTextFormatView() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Certificate Data State
-  const [certificateData, setCertificateData] = useState({
-    name: 'HOSSAINMUJAHIDUL',
-    gender: 'Masculino',
-    idNumber: 'A13635969',
-    startDate: '15-05-2024',
-    position: 'Análisis de Datos - Gerente de Producto Senior',
-    department: 'Departamento de Proyecto HOPEGOO',
-    companyName: 'Shanghai Chengmi Information Technology Co., Ltd.',
-    issueDate: '15 de agosto de 2024',
-    sealText: '上海程咪信息技术有限公司',
-    salary: ''
+  // Testimonial Data State
+  const [testimonialData, setTestimonialData] = useState({
+    title: 'Certificado de Empleo',
+    body: [
+      'Por la presente se certifica que HOSSAINMUJAHIDUL, sexo Masculino, número de documento A13635969, ha estado trabajando en nuestra empresa desde el 15-05-2024 hasta la fecha, actualmente ocupa el puesto de Análisis de Datos - Gerente de Producto Senior en el departamento Departamento de Proyecto HOPEGOO.',
+      'Se expide la presente constancia para los fines pertinentes.'
+    ],
+    sealText: 'Sello de Shanghai Chengmi Information Technology Co., Ltd.(sello)',
+    signatureBlock: [
+      { label: 'Nombre de la Empresa', value: 'Shanghai Chengmi Information Technology Co., Ltd.' },
+      { label: 'Fecha', value: '15 de agosto de 2024' }
+    ],
+    footer: [
+      { label: 'Dirección Detallada de la Empresa', value: 'Edificio Tongcheng Travel, No. 66 Honghui Road, Parque Industrial de Suzhou' },
+      { label: 'Contacto de la Empresa', value: 'Centro de RR.HH. y Operaciones Organizacionales' },
+      { label: 'Teléfono de la Empresa', value: '0512-80162199' }
+    ]
   });
 
   const handlePrint = async () => {
     if (!certificateRef.current) return;
 
-    console.log('Generating PDF with data:', certificateData);
+    console.log('Generating PDF with data:', testimonialData);
 
     try {
       setIsGeneratingPdf(true);
@@ -74,7 +79,7 @@ export function SimpleTextFormatView() {
       const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfImgHeight);
-      pdf.save('certificado-empleo.pdf');
+      pdf.save('testimonial-translated.pdf');
     } catch (error: any) {
       console.error('Error generating PDF:', error);
       alert(`Failed to generate PDF: ${error.message || 'Unknown error'}`);
@@ -112,39 +117,45 @@ export function SimpleTextFormatView() {
       const imagePart = await fileToGenerativePart(file);
 
       const prompt = `
-        Analyze this employment certificate/testimonial image. Extract the following information and translate the values to Spanish.
+        Analyze this document image (likely a certificate, testimonial, or letter). 
+        Extract the content and translate it into Spanish, maintaining the original structure as much as possible.
         
         Required JSON Structure:
         {
-          "name": "Employee Name",
-          "gender": "Masculino/Femenino (If not stated, try to infer from context, otherwise use 'N/A')",
-          "idNumber": "Passport or ID Number",
-          "startDate": "Start Date (DD-MM-YYYY)",
-          "position": "Job Title (Translated to Spanish)",
-          "department": "Department Name (Translated to Spanish)",
-          "companyName": "Company Name (Keep original)",
-          "issueDate": "Date of Issue (e.g., 15 de agosto de 2024)",
-          "sealText": "Text on the circular seal (Keep original language)",
-          "salary": "Monthly Salary (e.g., 34910 RMB) - Optional"
+          "title": "The main title of the document (e.g., 'Certificado de Empleo', 'Carta de Recomendación'). Translate to Spanish.",
+          "body": [
+            "Paragraph 1 translated to Spanish.",
+            "Paragraph 2 translated to Spanish.",
+            ...
+          ],
+          "sealText": "Translate the text on the circular seal to Spanish. It should follow the format 'Sello de [Company Name](sello)' or 'Sello Especial de [Department] de [Company Name](sello)'. If there is a numeric code inside the seal, place it at the very end of the string.",
+          "signatureBlock": [
+            { "label": "Label (e.g., Company Name, Date)", "value": "Value" },
+            ...
+          ],
+          "footer": [
+            { "label": "Label (e.g., Address, Phone)", "value": "Value" },
+            ...
+          ]
         }
 
-        If a field is not found, use "N/A". Ensure the output is valid JSON.
+        Instructions:
+        1. Extract the main title.
+        2. Extract the body text paragraph by paragraph. Translate smoothly to Spanish.
+        3. Extract the signature area information (Company Name, Date, etc.) as key-value pairs.
+        4. Extract the footer information (Address, Contact, etc.) as key-value pairs.
+        5. If any section is missing in the original document, return an empty array or empty string for that field. Do NOT invent information.
+        6. Ensure the output is valid JSON.
       `;
 
-      // Reset to loading state/placeholders to show something is happening
-      setCertificateData(prev => ({
-        ...prev,
-        name: 'Extrayendo...',
-        gender: '...',
-        idNumber: '...',
-        startDate: '...',
-        position: '...',
-        department: '...',
-        companyName: '...',
-        issueDate: '...',
+      // Reset to loading state
+      setTestimonialData({
+        title: 'Extrayendo...',
+        body: ['Extrayendo contenido...'],
         sealText: '...',
-        salary: '...'
-      }));
+        signatureBlock: [],
+        footer: []
+      });
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -164,14 +175,10 @@ export function SimpleTextFormatView() {
 
       try {
         const data = JSON.parse(text);
-        setCertificateData(prev => ({
-          ...prev,
-          ...data
-        }));
+        setTestimonialData(data);
       } catch (e) {
         console.error('JSON Parse Error:', e);
         alert('Failed to parse extracted data. Please check the console.');
-        // Revert to default or leave as is? Better to leave as is or show error state.
       }
     } catch (error) {
       console.error('Error extracting data:', error);
@@ -223,13 +230,15 @@ export function SimpleTextFormatView() {
         )}
 
         {previewUrl && (
-          <button 
-            onClick={() => window.open(previewUrl, '_blank')}
+          <a 
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
           >
             <Eye size={18} />
             View Original
-          </button>
+          </a>
         )}
 
         <button 
@@ -262,92 +271,61 @@ export function SimpleTextFormatView() {
         style={{ backgroundColor: '#ffffff', color: '#111827' }}
       >
         
-        {/* Header Logo */}
-        <div className="mb-16">
-            <div className="flex items-center gap-4 mb-4">
-                {/* Logo Icon */}
-                <div className="bg-[#000000] text-[#ffffff] rounded-full p-1.5 flex-shrink-0">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21 8C21 8 19 12 15 12C11 12 9 10 9 10C9 10 10 14 14 16C18 18 21 16 21 16" stroke="none" />
-                        <path d="M3 10C3 10 6 8 10 8C14 8 16 10 16 10" stroke="none" />
-                        <path d="M12 6C12 6 14 4 17 4" stroke="none" />
-                        <circle cx="5" cy="10" r="2" />
-                    </svg>
-                </div>
-                <span className="text-3xl font-bold tracking-wide font-sans mt-1">同程旅行</span>
-            </div>
+        {/* Header Logo - Removed */}
+        <div className="mb-8">
             <div className="w-full h-[2px] bg-[#000000]"></div>
         </div>
 
         {/* Title */}
-        <h1 className="text-center text-6xl font-bold mb-24 tracking-[0.15em] uppercase">
-            Certificado de<br/>Empleo
-        </h1>
+        {testimonialData.title && (
+          <h1 className="text-center text-4xl font-bold mb-16 tracking-[0.15em] uppercase">
+              {testimonialData.title.split('\n').map((line, i) => (
+                  <React.Fragment key={i}>
+                      {line}
+                      {i < testimonialData.title.split('\n').length - 1 && <br />}
+                  </React.Fragment>
+              ))}
+          </h1>
+        )}
 
         {/* Body Content */}
-        <div className="text-2xl leading-loose space-y-12 font-serif text-justify">
-            <p className="indent-16">
-                Por la presente se certifica que <span className="font-bold px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.name}</span>, 
-                {certificateData.gender !== 'N/A' && (
-                  <> sexo <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.gender}</span>,</>
-                )} 
-                número de documento <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.idNumber}</span>, 
-                ha estado trabajando en nuestra empresa desde el <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.startDate}</span> hasta la fecha, 
-                actualmente ocupa el puesto de <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.position}</span> en el departamento <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.department}</span>.
-                {certificateData.salary && (
-                  <> Su salario mensual es de <span className="px-2 underline underline-offset-8 decoration-1 decoration-[#000000]">{certificateData.salary}</span>.</>
-                )}
-            </p>
-
-            <p className="mt-20 indent-16">
-                Se expide la presente constancia para los fines pertinentes.
-            </p>
+        <div className="text-xl leading-loose space-y-8 font-serif text-justify">
+            {testimonialData.body && testimonialData.body.map((paragraph, index) => (
+                <p key={index} className="indent-12">
+                    {paragraph}
+                </p>
+            ))}
         </div>
 
         {/* Signature Section */}
-        <div className="mt-auto mb-20 flex flex-col items-end relative pr-10">
-            {/* Seal */}
-            <div className="absolute top-[-80px] right-[20px] w-56 h-56 border-[6px] border-[#dc2626] rounded-full flex items-center justify-center opacity-90 rotate-[-15deg] pointer-events-none">
-                <div className="relative w-full h-full flex items-center justify-center">
-                    {/* Star */}
-                    <div className="text-[#dc2626] text-8xl mb-4">★</div>
-                    {/* Circular Text */}
-                    <svg className="absolute w-full h-full" viewBox="0 0 100 100">
-                        <path id="curve" d="M 14, 50 A 36, 36 0 1, 1 86, 50" fill="transparent" />
-                        <text className="fill-[#dc2626] font-bold text-[7px] tracking-widest">
-                            <textPath href="#curve" startOffset="50%" textAnchor="middle">
-                                {certificateData.sealText}
-                            </textPath>
-                        </text>
-                    </svg>
-                </div>
-            </div>
+        <div className="mt-auto mb-16 flex flex-col items-end relative pr-8">
+            {/* Seal - Written Format */}
+            {testimonialData.sealText && (
+              <div className="mb-8 text-right text-sm text-[#dc2626] italic max-w-[300px]">
+                  {testimonialData.sealText}
+              </div>
+            )}
 
-            <div className="text-right z-10 space-y-4 font-serif text-xl">
-                <div className="mb-6">
-                    <span className="font-bold">Nombre de la Empresa:</span> {certificateData.companyName}
-                </div>
-                <div>
-                    <span className="font-bold">Fecha:</span> {certificateData.issueDate}
-                </div>
+            <div className="text-right z-10 space-y-3 font-serif text-lg">
+                {testimonialData.signatureBlock && testimonialData.signatureBlock.map((item, index) => (
+                    <div key={index}>
+                        <span className="font-bold">{item.label}:</span> {item.value}
+                    </div>
+                ))}
             </div>
         </div>
 
         {/* Footer */}
-        <div className="pt-12 border-t border-[#e5e7eb] text-sm space-y-3 text-[#4b5563] font-sans">
-            <div className="flex gap-4">
-                <span className="font-bold min-w-[260px]">Dirección Detallada de la Empresa:</span>
-                <span>Edificio Tongcheng Travel, No. 66 Honghui Road, Parque Industrial de Suzhou</span>
-            </div>
-            <div className="flex gap-4">
-                <span className="font-bold min-w-[260px]">Contacto de la Empresa:</span>
-                <span>Centro de RR.HH. y Operaciones Organizacionales</span>
-            </div>
-            <div className="flex gap-4">
-                <span className="font-bold min-w-[260px]">Teléfono de la Empresa:</span>
-                <span>0512-80162199</span>
-            </div>
-        </div>
+        {testimonialData.footer && testimonialData.footer.length > 0 && (
+          <div className="pt-12 border-t border-[#e5e7eb] text-sm space-y-3 text-[#4b5563] font-sans">
+              {testimonialData.footer.map((item, index) => (
+                  <div key={index} className="flex gap-4">
+                      <span className="font-bold min-w-[260px]">{item.label}:</span>
+                      <span>{item.value}</span>
+                  </div>
+              ))}
+          </div>
+        )}
 
       </div>
     </div>

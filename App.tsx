@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { FileText, AlignLeft, Menu, X } from 'lucide-react';
 import { StatementView } from './components/StatementView';
-import { SimpleTextFormatView } from './components/SimpleTextFormatView';
+import { TestimonialView } from './components/TestimonialView';
 
-type ViewType = 'statement' | 'simple';
+type ViewType = 'statement' | 'testimonial';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewType>('statement');
@@ -46,15 +46,15 @@ export default function App() {
           </button>
           
           <button
-            onClick={() => setActiveView('simple')}
+            onClick={() => setActiveView('testimonial')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeView === 'simple'
+              activeView === 'testimonial'
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             }`}
           >
             <AlignLeft size={18} />
-            Simple Text Format
+            Testimonial
           </button>
         </nav>
       </aside>
@@ -65,7 +65,7 @@ export default function App() {
           isSidebarOpen ? 'ml-64' : 'ml-0'
         }`}
       >
-        {activeView === 'statement' ? <StatementView /> : <SimpleTextFormatView />}
+        {activeView === 'statement' ? <StatementView /> : <TestimonialView />}
       </main>
     </div>
   );

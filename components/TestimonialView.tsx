@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Printer, Upload, Loader2, FileCheck, Eye } from 'lucide-react';
+import { Printer, Upload, Loader2, FileCheck, Eye, FileText } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { GoogleGenAI } from "@google/genai";
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
 
 // Initialize Gemini API
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -13,6 +15,7 @@ export function TestimonialView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
 
   // Testimonial Data State
@@ -85,6 +88,81 @@ export function TestimonialView() {
       alert(`Failed to generate PDF: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    try {
+      setIsGeneratingWord(true);
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            // Title
+            new Paragraph({
+              text: testimonialData.title.replace(/\n/g, " "),
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 400 },
+            }),
+
+            // Body
+            ...(testimonialData.body || []).map(paragraph => 
+              new Paragraph({
+                children: [new TextRun({ text: paragraph, size: 24 })], // 12pt
+                spacing: { after: 200 },
+                alignment: AlignmentType.JUSTIFIED,
+                indent: { firstLine: 720 }, // Indent
+              })
+            ),
+
+            new Paragraph({ text: "", spacing: { after: 400 } }),
+
+            // Seal (Text representation)
+            ...(testimonialData.sealText ? [
+              new Paragraph({
+                children: [new TextRun({ text: testimonialData.sealText, italics: true, color: "DC2626" })],
+                alignment: AlignmentType.RIGHT,
+                spacing: { after: 200 },
+              })
+            ] : []),
+
+            // Signature Block
+            ...(testimonialData.signatureBlock || []).map(item => 
+              new Paragraph({
+                children: [
+                    new TextRun({ text: `${item.label}: `, bold: true }),
+                    new TextRun({ text: item.value })
+                ],
+                alignment: AlignmentType.RIGHT,
+                spacing: { after: 100 },
+              })
+            ),
+
+            new Paragraph({ text: "", spacing: { after: 400 } }),
+
+            // Footer
+            ...(testimonialData.footer || []).map(item => 
+              new Paragraph({
+                children: [
+                    new TextRun({ text: `${item.label}: `, bold: true }),
+                    new TextRun({ text: item.value })
+                ],
+                spacing: { after: 100 },
+              })
+            ),
+          ],
+        }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, "testimonial-translated.docx");
+    } catch (error: any) {
+      console.error('Error generating Word doc:', error);
+      alert(`Failed to generate Word document: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsGeneratingWord(false);
     }
   };
 
@@ -249,18 +327,33 @@ export function TestimonialView() {
           {isExtracting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
           {selectedFile ? 'Change File' : 'Upload Document'}
         </button>
-        <button 
-          onClick={handlePrint}
-          disabled={isGeneratingPdf || isExtracting}
-          className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          {isGeneratingPdf ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <Printer size={18} />
-          )}
-          {isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}
-        </button>
+        
+        <div className="flex gap-2">
+            <button 
+            onClick={handleDownloadWord}
+            disabled={isGeneratingWord || isExtracting}
+            className="flex items-center gap-2 bg-[#ffffff] text-[#2563eb] border border-[#2563eb] px-4 py-2 rounded-lg hover:bg-[#eff6ff] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+            {isGeneratingWord ? (
+                <Loader2 size={18} className="animate-spin" />
+            ) : (
+                <FileText size={18} />
+            )}
+            Word
+            </button>
+            <button 
+            onClick={handlePrint}
+            disabled={isGeneratingPdf || isExtracting}
+            className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+            {isGeneratingPdf ? (
+                <Loader2 size={18} className="animate-spin" />
+            ) : (
+                <Printer size={18} />
+            )}
+            PDF
+            </button>
+        </div>
       </div>
 
       {/* Certificate Page */}

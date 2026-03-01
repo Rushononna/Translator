@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Printer, Upload, Loader2, FileCheck, Eye } from 'lucide-react';
+import { Printer, Upload, Loader2, FileCheck, Eye, FileText } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { GoogleGenAI } from "@google/genai";
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, HeadingLevel, TextRun, AlignmentType, BorderStyle } from 'docx';
+import { saveAs } from 'file-saver';
 
 interface Transaction {
   date: string;
@@ -60,6 +62,7 @@ export function StatementView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingWord, setIsGeneratingWord] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [statementData, setStatementData] = useState<StatementData>(INITIAL_DATA);
 
@@ -263,6 +266,115 @@ export function StatementView() {
     }
   };
 
+  const handleDownloadWord = async () => {
+    try {
+      setIsGeneratingWord(true);
+
+      const headerRows = [
+        ["Fecha", statementData.header.date, "Sucursal de Aceptación", statementData.header.acceptanceBranch, "Sucursal de Apertura", statementData.header.openingBranch],
+        ["Nombre", statementData.header.name, "Tipo de Comprobante", statementData.header.voucherType, "Número de Cuenta", statementData.header.accountNumber],
+        ["Tipo de Consulta", statementData.header.consultationType, "Tipo de Cuenta", statementData.header.currencyType, "Periodo de Transacción", statementData.header.transactionPeriod],
+        ["Cód. Verificación", statementData.header.verificationCode, "Tipo de Moneda", statementData.totals[0]?.currency || 'Todas las Monedas', "", ""]
+      ];
+
+      const transactionRows = statementData.transactions.map(tx => [
+        tx.date,
+        tx.currency,
+        tx.income,
+        tx.expense,
+        tx.balance,
+        tx.summary,
+        tx.counterparty,
+        tx.customerAbstract
+      ]);
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              text: "DETALLE HISTÓRICO DE TRANSACCIONES DE CUENTA",
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 200 },
+            }),
+            new Paragraph({
+              text: `Sello especial para recibo electronico de China Merchants Bank Co., Ltd. (${statementData.header.verificationCode || 'AH6P6MTC'})`,
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 400 },
+            }),
+            
+            // Header Info Table
+            new Table({
+              rows: headerRows.map(row => 
+                new TableRow({
+                  children: row.map((cellText, index) => 
+                    new TableCell({
+                      children: [new Paragraph({ text: cellText || "", style: index % 2 === 0 ? "strong" : undefined })],
+                      width: { size: 100 / 6, type: WidthType.PERCENTAGE },
+                      borders: {
+                        top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                      }
+                    })
+                  )
+                })
+              ),
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // Transactions Table
+            new Table({
+              rows: [
+                new TableRow({
+                  children: ["Fecha", "Moneda", "Ingresos", "Egresos", "Saldo", "Resumen", "Info. Contraparte", "Resumen del Cliente"].map(header => 
+                    new TableCell({
+                      children: [new Paragraph({ text: header, alignment: AlignmentType.CENTER, style: "strong" })],
+                      shading: { fill: "E0E0E0" },
+                    })
+                  ),
+                  tableHeader: true,
+                }),
+                ...transactionRows.map(row => 
+                  new TableRow({
+                    children: row.map(cell => 
+                      new TableCell({
+                        children: [new Paragraph(cell)],
+                      })
+                    )
+                  })
+                )
+              ],
+              width: { size: 100, type: WidthType.PERCENTAGE },
+            }),
+
+            new Paragraph({ text: "", spacing: { after: 200 } }),
+
+            // Totals
+            ...statementData.totals.map(total => 
+              new Paragraph({
+                text: `Moneda: ${total.currency} | Total Ingresos: ${total.totalIncome} | Total Egresos: ${total.totalExpense}`,
+                spacing: { before: 100 },
+              })
+            )
+          ],
+        }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, "bank-statement-translated.docx");
+    } catch (error: any) {
+      console.error('Error generating Word doc:', error);
+      alert(`Failed to generate Word document: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsGeneratingWord(false);
+    }
+  };
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -325,18 +437,33 @@ export function StatementView() {
           <Upload size={18} />
           {selectedFile ? 'Change File' : 'Upload Statement'}
         </button>
-        <button 
-          onClick={handlePrint}
-          disabled={isGeneratingPdf || isExtracting || statementData.transactions.length === 0}
-          className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          {isGeneratingPdf ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <Printer size={18} />
-          )}
-          {isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}
-        </button>
+        
+        <div className="flex gap-2">
+            <button 
+            onClick={handleDownloadWord}
+            disabled={isGeneratingWord || isExtracting || statementData.transactions.length === 0}
+            className="flex items-center gap-2 bg-[#ffffff] text-[#2563eb] border border-[#2563eb] px-4 py-2 rounded-lg hover:bg-[#eff6ff] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+            {isGeneratingWord ? (
+                <Loader2 size={18} className="animate-spin" />
+            ) : (
+                <FileText size={18} />
+            )}
+            Word
+            </button>
+            <button 
+            onClick={handlePrint}
+            disabled={isGeneratingPdf || isExtracting || statementData.transactions.length === 0}
+            className="flex items-center gap-2 bg-[#2563eb] text-[#ffffff] px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+            {isGeneratingPdf ? (
+                <Loader2 size={18} className="animate-spin" />
+            ) : (
+                <Printer size={18} />
+            )}
+            PDF
+            </button>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -423,7 +550,7 @@ export function StatementView() {
                    </div>
                    <div className="flex">
                       <span className="font-bold mr-2">Tipo de Moneda:</span>
-                      <span>{statementData.totals.currency || 'Todas las Monedas'}</span>
+                      <span>{statementData.totals[0]?.currency || 'Todas las Monedas'}</span>
                    </div>
                    <div className="flex">
                       {/* Empty cell */}

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { FileText, AlignLeft, Menu, X } from 'lucide-react';
 import { StatementView } from './components/StatementView';
 import { TestimonialView } from './components/TestimonialView';
+import { TabularWithTextView } from './components/TabularWithTextView';
 
-type ViewType = 'statement' | 'testimonial';
+type ViewType = 'statement' | 'testimonial' | 'tabular';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewType>('statement');
@@ -56,6 +57,18 @@ export default function App() {
             <AlignLeft size={18} />
             Testimonial
           </button>
+
+          <button
+            onClick={() => setActiveView('tabular')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              activeView === 'tabular'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <FileText size={18} />
+            Tabular with Text
+          </button>
         </nav>
       </aside>
 
@@ -65,7 +78,9 @@ export default function App() {
           isSidebarOpen ? 'ml-64' : 'ml-0'
         }`}
       >
-        {activeView === 'statement' ? <StatementView /> : <TestimonialView />}
+        {activeView === 'statement' ? <StatementView /> : 
+         activeView === 'testimonial' ? <TestimonialView /> : 
+         <TabularWithTextView />}
       </main>
     </div>
   );

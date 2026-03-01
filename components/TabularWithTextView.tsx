@@ -25,6 +25,7 @@ type Section = TextSection | TableSection;
 interface TabularWithTextData {
   title: string;
   sections: Section[];
+  sealText?: string;
 }
 
 export function TabularWithTextView() {
@@ -49,7 +50,8 @@ export function TabularWithTextView() {
         ] 
       },
       { type: 'text', content: 'Another text section following the table.' }
-    ]
+    ],
+    sealText: 'Sello de [Company Name](sello) 12345'
   });
 
   const handlePrintPdf = async () => {
@@ -190,7 +192,17 @@ export function TabularWithTextView() {
                 ];
               }
               return [];
-            })
+            }),
+
+            // Seal (Text representation)
+            ...(data.sealText ? [
+              new Paragraph({ text: "", spacing: { after: 400 } }),
+              new Paragraph({
+                children: [new TextRun({ text: data.sealText, italics: true, color: "DC2626" })],
+                alignment: AlignmentType.RIGHT,
+                spacing: { after: 200 },
+              })
+            ] : []),
           ],
         }],
       });
@@ -253,7 +265,8 @@ export function TabularWithTextView() {
               ]
             },
             ...
-          ]
+          ],
+          "sealText": "Translate the text on the circular seal to Spanish. It should follow the format 'Sello de [Company Name](sello)' or 'Sello Especial de [Department] de [Company Name](sello)'. If there is a numeric code inside the seal, place it at the very end of the string."
         }
 
         Instructions:
@@ -263,7 +276,8 @@ export function TabularWithTextView() {
         4. If you encounter a table, create a "table" section with headers and rows.
         5. Maintain the order of sections as they appear in the document.
         6. Translate all text content to Spanish.
-        7. Ensure the output is valid JSON.
+        7. Extract any seal text found in the document and place it in the 'sealText' field.
+        8. Ensure the output is valid JSON.
       `;
 
       // Reset to loading state
@@ -399,7 +413,7 @@ export function TabularWithTextView() {
       >
         
         {/* Title */}
-        <h1 className="text-center text-3xl font-bold mb-8 text-gray-900">
+        <h1 className="text-center text-3xl font-bold mb-8 text-[#111827]">
             {data.title}
         </h1>
 
@@ -408,28 +422,28 @@ export function TabularWithTextView() {
             {data.sections.map((section, index) => {
                 if (section.type === 'text') {
                     return (
-                        <p key={index} className="text-justify leading-relaxed text-gray-800 text-sm">
+                        <p key={index} className="text-justify leading-relaxed text-[#1f2937] text-sm">
                             {section.content}
                         </p>
                     );
                 } else if (section.type === 'table') {
                     return (
-                        <div key={index} className="overflow-x-auto border border-gray-300 rounded-sm mb-4 table-wrapper">
-                            <table className="min-w-full divide-y divide-gray-300">
-                                <thead className="bg-gray-50">
+                        <div key={index} className="overflow-x-auto border border-[#d1d5db] rounded-sm mb-4 table-wrapper">
+                            <table className="min-w-full divide-y divide-[#d1d5db]">
+                                <thead className="bg-[#f9fafb]">
                                     <tr>
                                         {section.headers.map((header, hIndex) => (
-                                            <th key={hIndex} className="px-3 py-2 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider border-b border-gray-300">
+                                            <th key={hIndex} className="px-3 py-2 text-left text-xs font-semibold text-[#111827] uppercase tracking-wider border-b border-[#d1d5db]">
                                                 {header}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-[#e5e7eb]">
                                     {section.rows.map((row, rIndex) => (
-                                        <tr key={rIndex} className={rIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                        <tr key={rIndex} className={rIndex % 2 === 0 ? 'bg-white' : 'bg-[#f9fafb]'}>
                                             {row.map((cell, cIndex) => (
-                                                <td key={cIndex} className="px-3 py-2 text-xs text-gray-700 whitespace-pre-wrap border-r border-gray-200 last:border-r-0">
+                                                <td key={cIndex} className="px-3 py-2 text-xs text-[#374151] whitespace-pre-wrap border-r border-[#e5e7eb] last:border-r-0">
                                                     {cell}
                                                 </td>
                                             ))}
@@ -443,6 +457,13 @@ export function TabularWithTextView() {
                 return null;
             })}
         </div>
+        
+        {/* Seal - Written Format */}
+        {data.sealText && (
+          <div className="mt-8 text-right text-sm text-[#dc2626] italic">
+              {data.sealText}
+          </div>
+        )}
 
       </div>
     </div>

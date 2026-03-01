@@ -592,7 +592,7 @@ export function StatementView() {
                 ))}
                 {page.transactions.length === 0 && (
                     <tr>
-                        <td colSpan={8} className="py-8 text-center text-gray-400 italic">
+                        <td colSpan={8} className="py-8 text-center text-[#9ca3af] italic">
                             {isExtracting ? 'Cargando transacciones...' : 'No hay transacciones para mostrar.'}
                         </td>
                     </tr>

@@ -240,11 +240,6 @@ export function StatementView() {
               if (element) {
                   element.style.color = '#111827';
                   element.style.backgroundColor = '#ffffff';
-                  // Ensure seal is visible
-                  const seal = element.querySelector('.custom-seal');
-                  if (seal) {
-                      (seal as HTMLElement).style.opacity = '1';
-                  }
               }
           }
         });
@@ -312,13 +307,15 @@ export function StatementView() {
         )}
 
         {previewUrl && (
-          <button 
-            onClick={() => window.open(previewUrl, '_blank')}
+          <a 
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-2 bg-[#ffffff] text-[#374151] border border-[#d1d5db] px-4 py-2 rounded-lg hover:bg-[#f9fafb] transition-colors shadow-sm font-medium"
           >
             <Eye size={18} />
             View Original
-          </button>
+          </a>
         )}
 
         <button 
@@ -367,11 +364,11 @@ export function StatementView() {
             {page.isFirst && (
               <>
                 <h1 className="text-center text-xl font-medium mb-1 mt-4 tracking-wide text-[#000000]">
-                  DETALLE HISTÓRICO DE TRANSACCIONES DE CUENTA DE CHINA MERCHANTS BANK
+                  DETALLE HISTÓRICO DE TRANSACCIONES DE CUENTA
                 </h1>
                 
                 {/* Seal Text */}
-                <div className="text-center text-[10px] font-bold text-[#000000] mb-8">
+                <div className="text-center text-[10px] text-[#000000] mb-8">
                     Sello especial para recibo electronico de China Merchants Bank Co., Ltd. ({statementData.header.verificationCode || 'AH6P6MTC'})
                 </div>
 

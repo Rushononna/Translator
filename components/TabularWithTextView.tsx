@@ -30,7 +30,6 @@ interface TabularWithTextData {
 
 export function TabularWithTextView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -54,76 +53,167 @@ export function TabularWithTextView() {
     sealText: 'Sello de [Company Name](sello) 12345'
   });
 
+  const [pages, setPages] = useState<Section[][]>([]);
+
+  // Pagination Constants
+  const PAGE_HEIGHT = 900; // px (approx safe printable height for A4)
+  const CHARS_PER_LINE = 100;
+  const LINE_HEIGHT = 20;
+  const TITLE_HEIGHT = 100;
+  const TABLE_HEADER_HEIGHT = 50;
+  const TABLE_ROW_BASE_HEIGHT = 35;
+  const SEAL_HEIGHT = 100;
+
+  React.useEffect(() => {
+    const calculatePages = () => {
+        const newPages: Section[][] = [];
+        let currentSections: Section[] = [];
+        let currentHeight = 0;
+
+        // Initial padding
+        currentHeight += 40;
+
+        // Title on first page
+        currentHeight += TITLE_HEIGHT;
+
+        data.sections.forEach(section => {
+            if (section.type === 'text') {
+                const lines = Math.ceil(section.content.length / CHARS_PER_LINE);
+                const height = Math.max(lines * LINE_HEIGHT + 20, 40); // Min height
+                
+                if (currentHeight + height > PAGE_HEIGHT) {
+                    newPages.push(currentSections);
+                    currentSections = [];
+                    currentHeight = 40; // Reset height for new page
+                }
+                currentSections.push(section);
+                currentHeight += height;
+            } else if (section.type === 'table') {
+                // Header cost
+                if (currentHeight + TABLE_HEADER_HEIGHT + TABLE_ROW_BASE_HEIGHT > PAGE_HEIGHT) {
+                    newPages.push(currentSections);
+                    currentSections = [];
+                    currentHeight = 40;
+                }
+
+                let currentTableRows: string[][] = [];
+                let tableHeaderAdded = false;
+                
+                // If starting new table or continuing, we need header space
+                if (!tableHeaderAdded) {
+                    currentHeight += TABLE_HEADER_HEIGHT;
+                    tableHeaderAdded = true;
+                }
+
+                section.rows.forEach((row) => {
+                    // Estimate row height based on content
+                    const maxCellLength = Math.max(...row.map(c => c.length || 0));
+                    const lines = Math.ceil(maxCellLength / 25); // approx chars per col
+                    const thisRowHeight = Math.max(TABLE_ROW_BASE_HEIGHT, lines * 16 + 16);
+
+                    if (currentHeight + thisRowHeight > PAGE_HEIGHT) {
+                        // Push current table part
+                        currentSections.push({ 
+                            type: 'table', 
+                            headers: section.headers, 
+                            rows: currentTableRows 
+                        });
+                        newPages.push(currentSections);
+                        
+                        // Start new page
+                        currentSections = [];
+                        currentTableRows = [];
+                        currentHeight = 40 + TABLE_HEADER_HEIGHT; // New page padding + header
+                    }
+                    
+                    currentTableRows.push(row);
+                    currentHeight += thisRowHeight;
+                });
+
+                // Push remaining rows
+                if (currentTableRows.length > 0) {
+                    currentSections.push({ 
+                        type: 'table', 
+                        headers: section.headers, 
+                        rows: currentTableRows 
+                    });
+                }
+            }
+        });
+
+        // Check space for seal on last page
+        if (data.sealText) {
+            if (currentHeight + SEAL_HEIGHT > PAGE_HEIGHT) {
+                newPages.push(currentSections);
+                currentSections = [];
+            }
+        }
+
+        if (currentSections.length > 0) {
+            newPages.push(currentSections);
+        }
+
+        setPages(newPages);
+    };
+
+    calculatePages();
+  }, [data]);
+
   const handlePrintPdf = async () => {
-    if (!contentRef.current) return;
+    const pageElements = document.querySelectorAll('[data-pdf-page]');
+    if (!pageElements.length) return;
 
     try {
       setIsGeneratingPdf(true);
-      window.scrollTo(0, 0);
-      await new Promise(resolve => setTimeout(resolve, 500));
       
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
       
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-            const element = clonedDoc.getElementById('document-page');
-            if (element) {
-                element.classList.remove('shadow-xl', 'mx-auto');
-                
-                // Fix text width to prevent reflow when we expand container
-                // A4 (210mm) - Padding (20mm * 2) = 170mm
-                const textElements = element.querySelectorAll('p, h1');
-                textElements.forEach((el) => {
-                    (el as HTMLElement).style.width = '170mm';
-                });
+      for (let i = 0; i < pageElements.length; i++) {
+        const pageEl = pageElements[i] as HTMLElement;
+        
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+              const element = clonedDoc.querySelector(`[data-page-id="${i}"]`) as HTMLElement;
+              if (element) {
+                  element.classList.remove('shadow-xl', 'mx-auto', 'my-8');
+                  element.style.width = '210mm';
+                  element.style.height = '297mm'; // Force A4 height
+                  element.style.margin = '0';
+                  element.style.padding = '20mm';
+                  element.style.overflow = 'visible'; // Ensure content is visible
+                  
+                  // Fix text width
+                  const textElements = element.querySelectorAll('p, h1');
+                  textElements.forEach((el) => {
+                      (el as HTMLElement).style.width = '170mm';
+                  });
 
-                // Allow container to expand to fit wide tables
-                element.style.width = 'fit-content';
-                element.style.minWidth = '210mm';
-                element.style.maxWidth = 'none'; // Override any max-width
-                element.style.height = 'auto';
-                element.style.minHeight = '297mm';
-                element.style.margin = '0';
-                element.style.padding = '20mm';
-                element.style.transform = 'none';
-                element.style.overflow = 'visible';
+                  // Handle tables
+                  const tableWrappers = element.querySelectorAll('.table-wrapper');
+                  tableWrappers.forEach((el) => {
+                      (el as HTMLElement).style.overflow = 'visible';
+                      (el as HTMLElement).style.width = 'auto';
+                      // Ensure table expands
+                      const table = el.querySelector('table');
+                      if (table) table.style.width = '100%';
+                  });
+              }
+          }
+        });
 
-                // Make tables fully visible
-                const tableWrappers = element.querySelectorAll('.table-wrapper');
-                tableWrappers.forEach((el) => {
-                    (el as HTMLElement).style.overflow = 'visible';
-                    (el as HTMLElement).style.width = 'auto';
-                });
-            }
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        if (i > 0) {
+            pdf.addPage();
         }
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      // If content is taller than A4, we might need multiple pages, but for simplicity 
-      // in this "image snapshot" approach, we'll just scale or let it be one long image if needed.
-      // Ideally, for multi-page content, we'd split it. For now, let's stick to single page logic or basic scaling.
-      // If height > 297, add pages.
-      
-      let heightLeft = pdfImgHeight;
-      let position = 0;
-      const pageHeight = 297;
-
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfImgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfImgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfImgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfImgHeight);
       }
 
       pdf.save('tabular-text-document.pdf');
@@ -404,67 +494,79 @@ export function TabularWithTextView() {
         </div>
       </div>
 
-      {/* Document Page */}
-      <div 
-        id="document-page"
-        ref={contentRef}
-        className="max-w-[210mm] mx-auto bg-[#ffffff] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] print:shadow-none min-h-[297mm] w-[210mm] p-[20mm] relative font-sans text-[#111827] flex flex-col"
-        style={{ backgroundColor: '#ffffff', color: '#111827' }}
-      >
-        
-        {/* Title */}
-        <h1 className="text-center text-3xl font-bold mb-8 text-[#111827]">
-            {data.title}
-        </h1>
+      {/* Document Pages */}
+      <div className="flex flex-col gap-8 print:gap-0">
+        {pages.map((pageSections, pageIndex) => (
+          <div 
+            key={pageIndex}
+            data-pdf-page="true"
+            data-page-id={pageIndex}
+            className="max-w-[210mm] mx-auto bg-[#ffffff] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] print:shadow-none min-h-[297mm] w-[210mm] p-[20mm] relative font-sans text-[#111827] flex flex-col"
+            style={{ backgroundColor: '#ffffff', color: '#111827' }}
+          >
+            
+            {/* Title only on first page */}
+            {pageIndex === 0 && (
+                <h1 className="text-center text-3xl font-bold mb-8 text-[#111827]">
+                    {data.title}
+                </h1>
+            )}
 
-        {/* Content Sections */}
-        <div className="space-y-6">
-            {data.sections.map((section, index) => {
-                if (section.type === 'text') {
-                    return (
-                        <p key={index} className="text-justify leading-relaxed text-[#1f2937] text-sm">
-                            {section.content}
-                        </p>
-                    );
-                } else if (section.type === 'table') {
-                    return (
-                        <div key={index} className="overflow-x-auto border border-[#d1d5db] rounded-sm mb-4 table-wrapper">
-                            <table className="min-w-full divide-y divide-[#d1d5db]">
-                                <thead className="bg-[#f9fafb]">
-                                    <tr>
-                                        {section.headers.map((header, hIndex) => (
-                                            <th key={hIndex} className="px-3 py-2 text-left text-xs font-semibold text-[#111827] uppercase tracking-wider border-b border-[#d1d5db]">
-                                                {header}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-[#e5e7eb]">
-                                    {section.rows.map((row, rIndex) => (
-                                        <tr key={rIndex} className={rIndex % 2 === 0 ? 'bg-white' : 'bg-[#f9fafb]'}>
-                                            {row.map((cell, cIndex) => (
-                                                <td key={cIndex} className="px-3 py-2 text-xs text-[#374151] whitespace-pre-wrap border-r border-[#e5e7eb] last:border-r-0">
-                                                    {cell}
-                                                </td>
+            {/* Content Sections */}
+            <div className="space-y-6">
+                {pageSections.map((section, index) => {
+                    if (section.type === 'text') {
+                        return (
+                            <p key={index} className="text-justify leading-relaxed text-[#1f2937] text-sm">
+                                {section.content}
+                            </p>
+                        );
+                    } else if (section.type === 'table') {
+                        return (
+                            <div key={index} className="overflow-x-auto border border-[#d1d5db] rounded-sm mb-4 table-wrapper">
+                                <table className="min-w-full divide-y divide-[#d1d5db]">
+                                    <thead className="bg-[#f9fafb]">
+                                        <tr>
+                                            {section.headers.map((header, hIndex) => (
+                                                <th key={hIndex} className="px-3 py-2 text-left text-xs font-semibold text-[#111827] uppercase tracking-wider border-b border-[#d1d5db]">
+                                                    {header}
+                                                </th>
                                             ))}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    );
-                }
-                return null;
-            })}
-        </div>
-        
-        {/* Seal - Written Format */}
-        {data.sealText && (
-          <div className="mt-8 text-right text-sm text-[#dc2626] italic">
-              {data.sealText}
-          </div>
-        )}
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-[#e5e7eb]">
+                                        {section.rows.map((row, rIndex) => (
+                                            <tr key={rIndex} className={rIndex % 2 === 0 ? 'bg-white' : 'bg-[#f9fafb]'}>
+                                                {row.map((cell, cIndex) => (
+                                                    <td key={cIndex} className="px-3 py-2 text-xs text-[#374151] whitespace-pre-wrap border-r border-[#e5e7eb] last:border-r-0">
+                                                        {cell}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        );
+                    }
+                    return null;
+                })}
+            </div>
+            
+            {/* Seal - Written Format (Only on last page) */}
+            {pageIndex === pages.length - 1 && data.sealText && (
+              <div className="mt-auto pt-8 text-right text-sm text-[#dc2626] italic">
+                  {data.sealText}
+              </div>
+            )}
 
+            {/* Footer / Page Number */}
+            <div className="mt-auto pt-4 flex justify-end text-[10px] text-[#6b7280] border-t border-[#e5e7eb]">
+               <div>Página {pageIndex + 1} de {pages.length}</div>
+            </div>
+
+          </div>
+        ))}
       </div>
     </div>
   );

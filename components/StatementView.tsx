@@ -67,9 +67,114 @@ export function StatementView() {
   const [statementData, setStatementData] = useState<StatementData>(INITIAL_DATA);
 
   // Pagination Configuration
-  // Based on screenshot: Page 1 has ~25 rows, Page 2+ has ~30 rows
-  const ITEMS_PER_PAGE_FIRST = 25;
-  const ITEMS_PER_PAGE_OTHER = 30;
+  const PAGE_HEIGHT = 950; // px (approx safe printable height)
+  const HEADER_HEIGHT = 350; // Height of the header info on first page
+  const TABLE_HEADER_HEIGHT = 40;
+  const ROW_BASE_HEIGHT = 25;
+  const FOOTER_HEIGHT = 50;
+  const TOTALS_BASE_HEIGHT = 60;
+  const TOTAL_ROW_HEIGHT = 20;
+
+  const [pages, setPages] = useState<{ pageNum: number; transactions: Transaction[]; isFirst: boolean }[]>([]);
+
+  React.useEffect(() => {
+    const calculatePages = () => {
+        if (statementData.transactions.length === 0) {
+            setPages([{ pageNum: 1, transactions: [], isFirst: true }]);
+            return;
+        }
+
+        const newPages: { pageNum: number; transactions: Transaction[]; isFirst: boolean }[] = [];
+        let currentTransactions: Transaction[] = [];
+        let currentHeight = HEADER_HEIGHT + TABLE_HEADER_HEIGHT; // Start with header height for first page
+        let pageNum = 1;
+
+        statementData.transactions.forEach((tx) => {
+            // Estimate row height based on content length
+            // Counterparty (20% width) and Abstract (18% width) are most likely to wrap
+            // Assuming approx 35 chars per line for these columns at 8px font
+            const counterpartyLines = Math.ceil((tx.counterparty?.length || 0) / 35) || 1;
+            const abstractLines = Math.ceil((tx.customerAbstract?.length || 0) / 30) || 1;
+            const summaryLines = Math.ceil((tx.summary?.length || 0) / 25) || 1;
+            
+            const maxLines = Math.max(counterpartyLines, abstractLines, summaryLines);
+            const rowHeight = Math.max(ROW_BASE_HEIGHT, maxLines * 12 + 8); // 12px per line + padding
+
+            if (currentHeight + rowHeight > PAGE_HEIGHT - FOOTER_HEIGHT) {
+                // Page full, push current page
+                newPages.push({
+                    pageNum: pageNum,
+                    transactions: currentTransactions,
+                    isFirst: pageNum === 1
+                });
+                
+                // Start new page
+                pageNum++;
+                currentTransactions = [];
+                currentHeight = TABLE_HEADER_HEIGHT + 20; // Reset height (header + padding)
+            }
+
+            currentTransactions.push(tx);
+            currentHeight += rowHeight;
+        });
+
+        // Check if totals fit on the last page
+        const totalsHeight = TOTALS_BASE_HEIGHT + (statementData.totals.length * TOTAL_ROW_HEIGHT);
+        if (currentHeight + totalsHeight > PAGE_HEIGHT - FOOTER_HEIGHT) {
+             // Push current page and create a new one for totals (or just push current and let totals be on next)
+             // Actually, if we just push the current transactions, the renderer will try to put totals on this page
+             // if it's the last one. We need to ensure the renderer knows to split if needed.
+             // But our renderer logic puts totals on the *last page of the array*.
+             // So if totals don't fit, we should move the last few transactions to a new page
+             // OR create a new page with empty transactions just for totals?
+             
+             // Simpler approach: If totals don't fit, push current page, then add a new empty page for totals
+             newPages.push({
+                pageNum: pageNum,
+                transactions: currentTransactions,
+                isFirst: pageNum === 1
+            });
+            
+            // If transactions were just pushed, we might need a new page for totals if they didn't fit
+            // But wait, the loop finished. 
+            // If we are here, it means we have `currentTransactions` that haven't been pushed yet OR we just pushed them.
+            // Let's restructure: we push `currentTransactions` at the END of the loop.
+        } else {
+             // Totals fit, just push the page at the end
+        }
+        
+        // Correct logic:
+        // We haven't pushed the last batch of `currentTransactions` yet.
+        // Check if totals fit with them.
+        if (currentHeight + totalsHeight > PAGE_HEIGHT - FOOTER_HEIGHT) {
+            // Totals don't fit with the rest of transactions.
+            // Push current transactions as a page.
+            newPages.push({
+                pageNum: pageNum,
+                transactions: currentTransactions,
+                isFirst: pageNum === 1
+            });
+            
+            // Add a new page for totals (empty transactions)
+            newPages.push({
+                pageNum: pageNum + 1,
+                transactions: [],
+                isFirst: false
+            });
+        } else {
+            // Totals fit. Push everything as one page.
+            newPages.push({
+                pageNum: pageNum,
+                transactions: currentTransactions,
+                isFirst: pageNum === 1
+            });
+        }
+
+        setPages(newPages);
+    };
+
+    calculatePages();
+  }, [statementData]);
 
   async function fileToGenerativePart(file: File): Promise<{ inlineData: { data: string; mimeType: string } }> {
     return new Promise((resolve, reject) => {
@@ -186,37 +291,37 @@ export function StatementView() {
   };
 
   // Calculate pages
-  const pages = [];
-  const transactionsList = statementData.transactions.length > 0 ? statementData.transactions : [];
+  // const pages = [];
+  // const transactionsList = statementData.transactions.length > 0 ? statementData.transactions : [];
   
-  if (transactionsList.length > 0) {
-      // First Page
-      pages.push({
-        pageNum: 1,
-        transactions: transactionsList.slice(0, ITEMS_PER_PAGE_FIRST),
-        isFirst: true
-      });
+  // if (transactionsList.length > 0) {
+  //     // First Page
+  //     pages.push({
+  //       pageNum: 1,
+  //       transactions: transactionsList.slice(0, ITEMS_PER_PAGE_FIRST),
+  //       isFirst: true
+  //     });
 
-      // Subsequent Pages
-      let remainingTx = transactionsList.slice(ITEMS_PER_PAGE_FIRST);
-      let currentPage = 2;
-      while (remainingTx.length > 0) {
-        pages.push({
-            pageNum: currentPage,
-            transactions: remainingTx.slice(0, ITEMS_PER_PAGE_OTHER),
-            isFirst: false
-        });
-        remainingTx = remainingTx.slice(ITEMS_PER_PAGE_OTHER);
-        currentPage++;
-      }
-  } else {
-      // Empty page if no data yet
-      pages.push({
-          pageNum: 1,
-          transactions: [],
-          isFirst: true
-      });
-  }
+  //     // Subsequent Pages
+  //     let remainingTx = transactionsList.slice(ITEMS_PER_PAGE_FIRST);
+  //     let currentPage = 2;
+  //     while (remainingTx.length > 0) {
+  //       pages.push({
+  //           pageNum: currentPage,
+  //           transactions: remainingTx.slice(0, ITEMS_PER_PAGE_OTHER),
+  //           isFirst: false
+  //       });
+  //       remainingTx = remainingTx.slice(ITEMS_PER_PAGE_OTHER);
+  //       currentPage++;
+  //     }
+  // } else {
+  //     // Empty page if no data yet
+  //     pages.push({
+  //         pageNum: 1,
+  //         transactions: [],
+  //         isFirst: true
+  //     });
+  // }
   
   const totalPages = pages.length;
 

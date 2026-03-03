@@ -3,7 +3,7 @@ import { Printer, Upload, Loader2, FileCheck, Eye, FileText } from 'lucide-react
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { GoogleGenAI } from "@google/genai";
-import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 
 // Initialize Gemini API
@@ -101,7 +101,7 @@ export function TestimonialView() {
           children: [
             // Title
             new Paragraph({
-              text: testimonialData.title.replace(/\n/g, " "),
+              text: (testimonialData.title || '').replace(/\n/g, " "),
               heading: HeadingLevel.HEADING_1,
               alignment: AlignmentType.CENTER,
               spacing: { after: 400 },
@@ -110,7 +110,7 @@ export function TestimonialView() {
             // Body
             ...(testimonialData.body || []).map(paragraph => 
               new Paragraph({
-                children: [new TextRun({ text: paragraph, size: 24 })], // 12pt
+                children: [new TextRun({ text: paragraph || '', size: 24 })], // 12pt
                 spacing: { after: 200 },
                 alignment: AlignmentType.JUSTIFIED,
                 indent: { firstLine: 720 }, // Indent
@@ -132,8 +132,8 @@ export function TestimonialView() {
             ...(testimonialData.signatureBlock || []).map(item => 
               new Paragraph({
                 children: [
-                    new TextRun({ text: `${item.label}: `, bold: true }),
-                    new TextRun({ text: item.value })
+                    new TextRun({ text: `${item.label || ''}: `, bold: true }),
+                    new TextRun({ text: item.value || '' })
                 ],
                 alignment: AlignmentType.RIGHT,
                 spacing: { after: 100 },
@@ -146,8 +146,8 @@ export function TestimonialView() {
             ...(testimonialData.footer || []).map(item => 
               new Paragraph({
                 children: [
-                    new TextRun({ text: `${item.label}: `, bold: true }),
-                    new TextRun({ text: item.value })
+                    new TextRun({ text: `${item.label || ''}: `, bold: true }),
+                    new TextRun({ text: item.value || '' })
                 ],
                 spacing: { after: 100 },
               })
@@ -170,23 +170,60 @@ export function TestimonialView() {
     fileInputRef.current?.click();
   };
 
-  const fileToGenerativePart = (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
+  const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-        const base64Data = base64String.split(',')[1];
-        resolve({
-          inlineData: {
-            data: base64Data,
-            mimeType: file.type,
-          },
-        });
-      };
-      reader.onerror = reject;
       reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1536;
+          const MAX_HEIGHT = 1536;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Compress to JPEG with 0.8 quality
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataUrl.split(',')[1]);
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
     });
+  };
+
+  const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
+    try {
+      const base64Data = await compressImage(file);
+      return {
+        inlineData: {
+          data: base64Data,
+          mimeType: 'image/jpeg',
+        },
+      };
+    } catch (error) {
+      console.error("Error compressing image:", error);
+      throw error;
+    }
   };
 
   const extractData = async (file: File) => {

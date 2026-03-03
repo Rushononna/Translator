@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { FileText, AlignLeft, Menu, X } from 'lucide-react';
+import { FileText, AlignLeft, Menu, X, LayoutTemplate } from 'lucide-react';
 import { StatementView } from './components/StatementView';
 import { TestimonialView } from './components/TestimonialView';
 import { TabularWithTextView } from './components/TabularWithTextView';
+import { FormatIntactView } from './components/FormatIntactView';
 
-type ViewType = 'statement' | 'testimonial' | 'tabular';
+type ViewType = 'statement' | 'testimonial' | 'tabular' | 'format-intact';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewType>('statement');
@@ -69,6 +70,18 @@ export default function App() {
             <FileText size={18} />
             Tabular with Text
           </button>
+
+          <button
+            onClick={() => setActiveView('format-intact')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              activeView === 'format-intact'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <LayoutTemplate size={18} />
+            Format Intact
+          </button>
         </nav>
       </aside>
 
@@ -80,7 +93,8 @@ export default function App() {
       >
         {activeView === 'statement' ? <StatementView /> : 
          activeView === 'testimonial' ? <TestimonialView /> : 
-         <TabularWithTextView />}
+         activeView === 'tabular' ? <TabularWithTextView /> :
+         <FormatIntactView />}
       </main>
     </div>
   );
